@@ -48,6 +48,7 @@ const makeMove = (state) => {
 
 	let bestMoveIndex = null;
 	let bestMoveValue = null;
+	let moveVals = [];
 	allLegalMoves.forEach( (legalMove, i) => {
 
 		const potentialState = state.move(legalMove)
@@ -56,15 +57,25 @@ const makeMove = (state) => {
 		// This variable gets handed down in the recursive
 		// minimax call unchanged.
 
-		const stateValue = minimax(potentialState, depth, playerMoving);
-		//const stateValue = minimaxAlphaBetaWrapper(potentialState, depth, playerMoving)
+		// const stateValue = minimax(potentialState, depth, playerMoving);
+		const stateValue = minimaxAlphaBetaWrapper(potentialState, depth, playerMoving)
 
-		if (stateValue > bestMoveValue || bestMoveValue === null){
-			bestMoveIndex = i;
-			bestMoveValue = stateValue;
-		}
+		// if (stateValue > bestMoveValue || bestMoveValue === null){
+		// 	bestMoveIndex = i;
+		// 	bestMoveValue = stateValue;
+		// }
+
+		moveVals.push(stateValue);
 
 	});
+
+	const posWeights = [0, 1, 2, 3, 2, 1, 0];
+	let posAdjustedVals = moveVals.map((origVal, i) => {
+		return origVal + posWeights[i];
+	})
+
+	bestMoveIndex = posAdjustedVals.indexOf(Math.max(...posAdjustedVals));
+	console.log("index:", bestMoveIndex)
 	return allLegalMoves[bestMoveIndex]
 
 }
@@ -97,10 +108,21 @@ const heuristic = (state, maximizingPlayer) => {
     const minimizingPlayer = (maximizingPlayer == 'x') ? 'o' : 'x';
 
 	//An example.
-    const linesOfLengthTwoForX = state.numLines(2, 'x')
+		const lengthWeights = [5, 100, 1000];
 
+    const linesForX = [state.numLines(2, 'x'), state.numLines(3, 'x'), state.numLines(4, 'x')];
+    const linesForO = [state.numLines(2, 'o'), state.numLines(3, 'o'), state.numLines(4, 'o')];
+
+		let valForX = linesForX.map((lines, i)=> {
+			return lines * lengthWeights[i]}).reduce((a, b) => {return a + b});
+		let valForO = linesForO.map((lines, i)=> {
+			return lines * lengthWeights[i]}).reduce((a, b) => {return a + b});
     //Your code here.  Don't return random, obviously.
-	return Math.random()
+		//
+
+		// console.log("State withint heuristic", state.lastmove);
+
+	return minimizingPlayer === 'o' ? valForX - valForO : valForO - valForX;
 }
 
 
@@ -129,7 +151,20 @@ const minimax = (state, depth, maximizingPlayer) => {
 	var possibleStates = state.nextStates();
 	var currentPlayer = state.nextMovePlayer;
 	//Your code here.
-	return Math.random();
+	if((depth === 0) || !possibleStates.length)
+	{
+		return heuristic(state,maximizingPlayer)
+	}
+
+	let possStatesHeur = possibleStates.map(states => {
+		return minimax(states,depth - 1,maximizingPlayer)
+	})
+
+	if(currentPlayer === maximizingPlayer)
+	{
+		return Math.max(...possStatesHeur)
+	}
+	return Math.min(...possStatesHeur)
 }
 
 
@@ -154,6 +189,36 @@ const minimaxAlphaBetaWrapper = (state, depth, maximizingPlayer) => {
     does; this is why it is a very high value to start with.
 	*/
 	const minimaxAB = (state, depth, alpha, beta) => {
+		var minimizingPlayer = (maximizingPlayer == 'x') ? 'o' : 'x';
+		var possibleStates = state.nextStates();
+		var currentPlayer = state.nextMovePlayer;
+		//Your code here.
+		if (depth === 0 || !possibleStates.length) {
+			return heuristic(state, currentPlayer)
+		}
+
+		// let possStatesHeur = possibleStates.map(states => {
+		// 	return minimax(states, depth - 1, maximizingPlayer)
+		// })
+
+		if (currentPlayer === maximizingPlayer) {
+			let possStatesHeur = [];
+			for (var i = 0; i < possibleStates.length; i++) {
+				let returnVal = minimaxAB(possibleStates[i], depth - 1, alpha, beta);
+				if (returnVal > alpha) { alpha = returnVal }
+				if (alpha > beta) { return alpha }
+				possStatesHeur.push(returnVal)
+			}
+			return Math.max(...possStatesHeur)
+		} // only reaches if we're the minimizing player
+		let possStatesHeur = [];
+		for (var i = 0; i < possibleStates.length; i++) {
+			let returnVal = minimaxAB(possibleStates[i], depth - 1, alpha, beta);
+			if (returnVal < beta) { beta = returnVal }
+			if (beta < alpha) { return beta }
+			possStatesHeur.push(returnVal);
+		}
+			return Math.min(...possStatesHeur)
 	}
 
 	return minimaxAB(state, depth, -100000,100000);
